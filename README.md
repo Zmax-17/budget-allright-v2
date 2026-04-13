@@ -4,6 +4,8 @@ A clean and modern personal finance tracking application built with **React + Ty
 
 Manage your transactions, track savings goals, and visualize your financial health with beautiful charts.
 
+🌍 [Live Demo](https://budget-allright-v2.netlify.app/) | 📂 [Repo](https://github.com/Zmax-17/budget-allright-v2)
+
 ---
 
 ## ✨ Features
