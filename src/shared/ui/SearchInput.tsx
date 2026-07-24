@@ -25,7 +25,9 @@ export default function SearchInput({
       />
 
       <input
-        type="search"
+        type="text"
+        role="searchbox"
+        aria-label="Search transactions"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
