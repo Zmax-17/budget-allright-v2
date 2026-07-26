@@ -68,10 +68,11 @@ export default function Modal() {
       content = <ConfirmModal {...modal.data} />;
       break;
 
-    default:
+    default: {
       // This will prevent forgotten cases when adding new modals.
       const _exhaustiveCheck: never = modal;
       content = null;
+    }
   }
 
   return (

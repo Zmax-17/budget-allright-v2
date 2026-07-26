@@ -48,7 +48,7 @@ export function useCompletedGoal() {
           toast.success(
             "Goal completed and funds returned 🎉",
           );
-        } catch (err) {
+        } catch {
           toast.error("Error completing goal");
         }
       },

@@ -75,7 +75,7 @@ export default function Navbar() {
       try {
         await logout(); // Call logout from context
         navigate("/login");
-      } catch (error) {
+      } catch {
         toast.error("Logout failed");
       }
     }, [logout, navigate]);
