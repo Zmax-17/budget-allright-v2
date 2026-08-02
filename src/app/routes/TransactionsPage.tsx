@@ -3,7 +3,7 @@ import Modal from "../../components/Modal";
 
 export default function Transactions() {
   return (
-    <div>
+    <div className="h-full min-h-0 flex flex-col">
       <Modal />
       <TransactionsTable />
     </div>

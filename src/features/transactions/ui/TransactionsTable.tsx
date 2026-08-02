@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import TransactionRow from "./TransactionRow";
 import { useTransactionsByFilter } from "../model/useTransactionsByFilter.ts";
 import LoadingSpinner from "@/shared/ui/LoadingSpinner";
@@ -8,6 +8,13 @@ import EmptyState from "@/shared/ui/EmptyState.tsx";
 import { FaWallet } from "react-icons/fa";
 import SearchInput from "@/shared/ui/SearchInput.tsx";
 import { searchTransactions } from "../lib/searchTransactions.ts";
+import { usePagination } from "../model/usePagination";
+import Pagination from "./Pagination";
+import {
+  HiArrowDown,
+  HiArrowUp,
+  HiMiniArrowsUpDown,
+} from "react-icons/hi2";
 
 const SORTABLE_COLUMNS = [
   {
@@ -22,13 +29,6 @@ const SORTABLE_COLUMNS = [
     label: "Description",
     sortable: false,
   },
-
-  // If needed, uncomment lines below and change grid-cols-6 in this table header and TransactionRow
-  // {
-  //   key: "subCategory",
-  //   label: "Sub category",
-  //   sortable: false,
-  // },
   { key: "options", label: "Options", sortable: false },
 ] as const;
 
@@ -46,12 +46,66 @@ export default function TransactionsTable() {
     sort: { field: "date", direction: "desc" },
   });
 
+  const tableBodyRef = useRef<HTMLElement>(null);
+
+  const scrollTableToTop = () => {
+    tableBodyRef.current?.scrollTo({
+      top: 0,
+      behavior: "auto",
+    });
+  };
+
+  const withScroll = (action: () => void) => {
+    action();
+    scrollTableToTop();
+  };
+
+  const { isLoading, error, transactions } =
+    useTransactionsByFilter(filter);
+
+  const visibleTransactions = useMemo(
+    () =>
+      searchTransactions(transactions ?? [], searchQuery),
+    [transactions, searchQuery],
+  );
+
+  const {
+    paginatedItems,
+    currentPage,
+    totalPages,
+    totalItems,
+    pageSize,
+    startIndex,
+    endIndex,
+    visiblePages,
+    pageSizeOptions,
+    hasPrev,
+    hasNext,
+    goToPage,
+    prevPage,
+    nextPage,
+    changePageSize,
+    resetPage,
+  } = usePagination(visibleTransactions, 10);
+
+  const handleSearchChange = (value: string) => {
+    withScroll(() => {
+      setSearchQuery(value);
+      resetPage();
+    });
+  };
+
   const setTypeFilter = (type: FilterType) => {
-    setFilter((prev) => ({ ...prev, type }));
+    withScroll(() => {
+      setFilter((prev) => ({ ...prev, type }));
+      resetPage();
+    });
   };
 
   const handleSortClick = (column: SortableColumn) => {
-    if (column === "amount" || column === "date") {
+    if (column !== "amount" && column !== "date") return;
+
+    withScroll(() => {
       setFilter((prev) => ({
         ...prev,
         sort: {
@@ -63,28 +117,23 @@ export default function TransactionsTable() {
               : "desc",
         },
       }));
-    }
+      resetPage();
+    });
   };
 
-  const { isLoading, error, transactions } =
-    useTransactionsByFilter(filter);
-
-  const visibleTransactions = useMemo(
-    () => searchTransactions(transactions, searchQuery),
-    [transactions, searchQuery],
-  );
-
-  if (isLoading)
+  if (isLoading) {
     return (
       <LoadingSpinner message="Transaction loading..." />
     );
+  }
 
-  if (error)
+  if (error) {
     return (
       <div className="text-red-600">
         Error: {error.message}
       </div>
     );
+  }
 
   if (!transactions || transactions.length === 0) {
     return (
@@ -99,7 +148,7 @@ export default function TransactionsTable() {
   }
 
   return (
-    <div className="flex flex-col bg-white text-gray-800 dark:bg-gray-950 dark:text-gray-200 text-sm">
+    <div className="h-full min-h-0 flex flex-col bg-white text-gray-800 dark:bg-gray-950 dark:text-gray-200 text-sm">
       {/* HEADER */}
       <header className="shrink-0">
         <div className="max-w-full flex flex-wrap justify-between items-center gap-2 p-1 rounded-lg border border-emerald-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm dark:shadow-lg dark:shadow-black/30">
@@ -107,6 +156,7 @@ export default function TransactionsTable() {
           <div className="flex flex-wrap gap-2 items-center">
             {FILTER_TYPES.map((type) => {
               const isActive = filter.type === type;
+
               return (
                 <button
                   key={type}
@@ -114,7 +164,7 @@ export default function TransactionsTable() {
                   onClick={() => setTypeFilter(type)}
                   className={`px-3 py-1.5 text-sm rounded-md transition-all duration-200 disabled:cursor-not-allowed ${
                     isActive
-                      ? "bg-emerald-600 text-white shadow-sm  dark:bg-emerald-700"
+                      ? "bg-emerald-600 text-white shadow-sm dark:bg-emerald-700"
                       : "text-emerald-700 hover:bg-emerald-100 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/40 dark:hover:text-emerald-300"
                   }`}
                 >
@@ -124,10 +174,11 @@ export default function TransactionsTable() {
               );
             })}
           </div>
+
           {/* Search */}
           <SearchInput
             value={searchQuery}
-            onChange={setSearchQuery}
+            onChange={handleSearchChange}
           />
 
           <AddTransactionButton />
@@ -136,13 +187,10 @@ export default function TransactionsTable() {
 
       {/* Table container */}
       <div className="flex-1 min-h-0 flex flex-col border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm dark:shadow-xl dark:shadow-black/40 mt-2">
-        {/* Table */}
+        {/* Table header */}
         <div className="shrink-0">
           <div className="overflow-x-auto">
-            <div
-              className="
-              p-[1.6rem_2.4rem] grid grid-cols-5 gap-x-[2.4rem] items-center bg-emerald-100 text-emerald-900 border-b border-emerald-200 dark:bg-emerald-950 uppercase tracking-[0.4px] font-semibold dark:text-emerald-100 text-sm"
-            >
+            <div className="p-[1.6rem_2.4rem] grid grid-cols-5 gap-x-[2.4rem] items-center bg-emerald-100 text-emerald-900 border-b border-emerald-200 dark:bg-emerald-950 uppercase tracking-[0.4px] font-semibold dark:text-emerald-100 text-sm">
               {SORTABLE_COLUMNS.map(
                 ({ key, label, sortable }) => (
                   <div
@@ -157,14 +205,26 @@ export default function TransactionsTable() {
                     }
                   >
                     {label}
-                    {sortable &&
-                      filter.sort?.field === key && (
-                        <span>
-                          {filter.sort.direction === "asc"
-                            ? "↑"
-                            : "↓"}
-                        </span>
-                      )}
+                    {sortable && (
+                      <span
+                        className={`inline-flex items-center ${
+                          filter.sort?.field === key
+                            ? "text-emerald-700 dark:text-emerald-100"
+                            : "text-gray-400 dark:text-gray-500"
+                        }`}
+                      >
+                        {filter.sort?.field === key ? (
+                          filter.sort.direction ===
+                          "asc" ? (
+                            <HiArrowUp className="w-3.5 h-3.5" />
+                          ) : (
+                            <HiArrowDown className="w-3.5 h-3.5" />
+                          )
+                        ) : (
+                          <HiMiniArrowsUpDown className="w-3.5 h-3.5" />
+                        )}
+                      </span>
+                    )}
                   </div>
                 ),
               )}
@@ -172,10 +232,13 @@ export default function TransactionsTable() {
           </div>
         </div>
 
-        {/* BODY of a scrolling table */}
-        <section className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-gray-900">
-          {visibleTransactions.length > 0 ? (
-            visibleTransactions.map((tx) => (
+        {/* BODY */}
+        <section
+          ref={tableBodyRef}
+          className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-gray-900"
+        >
+          {paginatedItems.length > 0 ? (
+            paginatedItems.map((tx) => (
               <div
                 key={tx.id}
                 className="hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors duration-150"
@@ -189,6 +252,31 @@ export default function TransactionsTable() {
             </div>
           )}
         </section>
+
+        {/* Pagination */}
+        <div className="shrink-0 select-none">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            visiblePages={visiblePages}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+            onPageChange={(page) =>
+              withScroll(() => goToPage(page))
+            }
+            onPrev={() => withScroll(prevPage)}
+            onNext={() => withScroll(nextPage)}
+            onPageSizeChange={(size) =>
+              withScroll(() => changePageSize(size))
+            }
+            disabled={isLoading}
+          />
+        </div>
       </div>
     </div>
   );
